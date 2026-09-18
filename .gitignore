@@ -1,0 +1,12 @@
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.streamlit/
+*.pyc
+.DS_Store
+.env
+.env.*
+!.env.example
