@@ -74,7 +74,16 @@ def render_explore(products: pd.DataFrame, goal: Goal, category: str, brand_quer
             "Last verified": ranked["last_verified"].fillna("—"),
         }
     )
-    st.dataframe(display, use_container_width=True, hide_index=True)
+    st.dataframe(
+        display,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Product name": st.column_config.TextColumn(width="medium"),
+            "Brand": st.column_config.TextColumn(width="medium"),
+            "Last verified": st.column_config.TextColumn(width="small"),
+        },
+    )
 
 
 def _metric_rows(product_a: pd.Series, product_b: pd.Series) -> pd.DataFrame:
