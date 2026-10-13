@@ -22,6 +22,19 @@ def inject_styles() -> None:
             background: #ffffff;
         }
         .hl-muted { color: #5b6b7c; font-size: 0.92rem; }
+        .hl-brand { color: #16324f; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.2rem; }
+        @media (max-width: 768px) {
+          .block-container { padding-top: 0.8rem; padding-left: 0.75rem; padding-right: 0.75rem; }
+          h1 { font-size: 1.55rem; line-height: 1.2; }
+          [data-testid="stHorizontalBlock"] { flex-wrap: wrap; gap: 0.5rem; }
+          [data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+            width: 100% !important;
+            flex: 1 1 100% !important;
+            min-width: 0 !important;
+          }
+          [data-testid="stDataFrame"] { width: 100%; overflow-x: auto; }
+          div[data-testid="stMetric"] { padding-bottom: 0.4rem; }
+        }
         </style>
         """,
         unsafe_allow_html=True,

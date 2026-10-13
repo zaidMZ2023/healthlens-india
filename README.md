@@ -1,4 +1,4 @@
-# HealthLens India
+# HealthLens
 
 Compare Indian packaged foods using nutrition-label data. The first release covers **malted drink powders** and **chocolates**, and answers simple questions such as which product has less sugar or more protein per 100g.
 
@@ -8,6 +8,7 @@ The app does **not** say a product is healthy, diagnose anyone, or give medical 
 
 - Explore verified products sorted for **lower sugar** or **higher protein**
 - Compare two verified products in the same category, per 100g and per serving
+- Copy a comparison link that keeps the category, both products, and the selected goal
 - Read how the data and calculations work on the Methodology page
 
 Explore and Compare show only rows marked `Verified`. `Needs review` and `Demo` rows stay in the CSV for follow-up, but they are not part of the public catalogue. A **Data coverage** section shows how many verified products and categories are available, and the most recent `last_verified` date.
@@ -31,6 +32,7 @@ healthlens-india/
     sample_products.csv
   tests/
     test_compare.py
+    test_comparison_links.py
     test_validate_products.py
 ```
 
@@ -92,4 +94,4 @@ HL-001,your-product-slug,Product name,Brand name,Malted drink powders,Variant na
 
 ## Disclaimer
 
-HealthLens India is educational. It is not medical advice, a diagnosis tool, or a recommendation for children or clinical diets. Always read the pack in your hand. Formulations and serving sizes change.
+HealthLens is educational. It is not medical advice, a diagnosis tool, or a recommendation for children or clinical diets. Always read the pack in your hand. Formulations and serving sizes change.

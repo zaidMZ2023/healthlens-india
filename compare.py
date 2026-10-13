@@ -241,3 +241,115 @@ def compare_products(product_a: pd.Series, product_b: pd.Series, goal: Goal) -> 
         )
 
     raise ValueError(f"Unsupported goal: {goal}")
+
+
+QUERY_PAGE = "page"
+QUERY_CATEGORY = "category"
+QUERY_PRODUCT_A = "a"
+QUERY_PRODUCT_B = "b"
+QUERY_GOAL = "goal"
+
+PAGE_EXPLORE = "Explore products"
+PAGE_COMPARE = "Compare products"
+PAGE_METHODOLOGY = "Methodology"
+
+_PAGE_FROM_QUERY = {
+    "explore": PAGE_EXPLORE,
+    "compare": PAGE_COMPARE,
+    "methodology": PAGE_METHODOLOGY,
+}
+_QUERY_FROM_PAGE = {label: key for key, label in _PAGE_FROM_QUERY.items()}
+
+
+@dataclass(frozen=True)
+class LoadedComparison:
+    page: str
+    category: str | None
+    slug_a: str | None
+    slug_b: str | None
+    goal: Goal
+    duplicate_selection: bool
+
+
+def _query_value(params: dict[str, object], key: str) -> str:
+    value = params.get(key, "")
+    if isinstance(value, (list, tuple)):
+        value = value[0] if value else ""
+    return str(value).strip()
+
+
+def slugs_in_category(products: pd.DataFrame, category: str | None) -> list[str]:
+    """Product slugs available in one category, in catalogue order."""
+    if products.empty or not category or "category" not in products.columns or "slug" not in products.columns:
+        return []
+    subset = products.loc[products["category"] == category]
+    return [str(slug).strip() for slug in subset["slug"].tolist() if str(slug).strip()]
+
+
+def dropdown_slugs(products: pd.DataFrame, category: str | None, exclude_slug: str | None = None) -> list[str]:
+    """Slugs for a category dropdown, optionally excluding the other selected product."""
+    slugs = slugs_in_category(products, category)
+    if exclude_slug:
+        slugs = [slug for slug in slugs if slug != exclude_slug]
+    return slugs
+
+
+def load_comparison_query(params: dict[str, object], products: pd.DataFrame) -> LoadedComparison:
+    """Read a shareable comparison from query parameters.
+
+    Product A and Product B must belong to the requested category. The same slug
+    cannot be selected twice.
+    """
+    page = _PAGE_FROM_QUERY.get(_query_value(params, QUERY_PAGE).lower(), PAGE_EXPLORE)
+    goal_text = _query_value(params, QUERY_GOAL)
+    goal: Goal = "Higher protein" if goal_text == "Higher protein" else "Lower sugar"
+
+    category_text = _query_value(params, QUERY_CATEGORY)
+    known_categories: set[str] = set()
+    if not products.empty and "category" in products.columns:
+        known_categories = {str(value) for value in products["category"].dropna().tolist()}
+    category = category_text if category_text in known_categories else None
+
+    allowed = set(slugs_in_category(products, category))
+    slug_a = _query_value(params, QUERY_PRODUCT_A)
+    slug_b = _query_value(params, QUERY_PRODUCT_B)
+    if slug_a not in allowed:
+        slug_a = ""
+    if slug_b not in allowed:
+        slug_b = ""
+
+    duplicate = bool(slug_a and slug_b and slug_a == slug_b)
+    if duplicate:
+        slug_b = ""
+
+    return LoadedComparison(
+        page=page,
+        category=category,
+        slug_a=slug_a or None,
+        slug_b=slug_b or None,
+        goal=goal,
+        duplicate_selection=duplicate,
+    )
+
+
+def build_comparison_query(category: str, slug_a: str, slug_b: str, goal: Goal) -> dict[str, str]:
+    """Query parameters that recreate one comparison."""
+    return {
+        QUERY_PAGE: _QUERY_FROM_PAGE[PAGE_COMPARE],
+        QUERY_CATEGORY: category,
+        QUERY_PRODUCT_A: slug_a,
+        QUERY_PRODUCT_B: slug_b,
+        QUERY_GOAL: goal,
+    }
+
+
+def comparison_url(base_url: str, category: str, slug_a: str, slug_b: str, goal: Goal) -> str:
+    """Absolute or relative URL for a comparison."""
+    from urllib.parse import urlencode, urlsplit, urlunsplit
+
+    parts = urlsplit(base_url)
+    query = urlencode(build_comparison_query(category, slug_a, slug_b, goal))
+    base = urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
+    if not base:
+        return f"?{query}"
+    return f"{base}?{query}"
