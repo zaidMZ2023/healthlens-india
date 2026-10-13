@@ -1,0 +1,19 @@
+{
+  "comparisons": [
+    {
+      "product_a": "complan-royale-chocolate-500g",
+      "product_b": "complan-creamy-classic-1000g",
+      "goal": "Lower sugar"
+    },
+    {
+      "product_a": "horlicks-classic-malt-500g",
+      "product_b": "complan-creamy-classic-1000g",
+      "goal": "Higher protein"
+    },
+    {
+      "product_a": "cadbury-bournvita-original-500g",
+      "product_b": "horlicks-classic-malt-500g",
+      "goal": "Higher protein"
+    }
+  ]
+}

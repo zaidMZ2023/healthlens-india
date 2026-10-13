@@ -23,6 +23,7 @@ from compare import (
     sort_products_for_goal,
 )
 from data import data_coverage, filter_products, load_catalog, serving_values, verified_products
+from featured import FeaturedComparison, eligible_featured_comparisons, load_featured_entries
 from ui import (
     comparison_disclaimer,
     empty_state,
@@ -101,7 +102,48 @@ def render_goal_selector() -> Goal:
     return goal  # type: ignore[return-value]
 
 
-def render_explore(products: pd.DataFrame) -> None:
+def render_how_healthlens_compares() -> None:
+    st.subheader("How HealthLens compares products")
+    st.markdown(
+        """
+- Comparisons are normalized **per 100g**, so a larger pack does not win on its own.
+- Serving values are shown for context. They are calculated from the serving size on the label.
+- Product labels can change when a formula is updated. Check the pack in your hand.
+- Results are educational. They are not medical advice.
+        """
+    )
+
+
+def _open_featured(slug_a: str, slug_b: str, goal: str, category: str) -> None:
+    st.session_state.hl_compare_category = category
+    st.session_state.hl_slug_a = slug_a
+    st.session_state.hl_slug_b = slug_b
+    st.session_state.hl_goal = goal
+    st.session_state.hl_page = PAGE_COMPARE
+
+
+def render_popular_comparisons(featured: list[FeaturedComparison]) -> None:
+    if not featured:
+        return
+    st.subheader("Popular comparisons")
+    st.caption("These pairs are listed in the local featured-comparisons file. Both products are verified.")
+    for start in range(0, len(featured), 2):
+        columns = st.columns(2)
+        for column, item in zip(columns, featured[start : start + 2]):
+            with column:
+                with st.container(border=True):
+                    st.markdown(f"**Product A:** {item.name_a}")
+                    st.markdown(f"**Product B:** {item.name_b}")
+                    st.markdown(f"**Comparison goal:** {item.goal}")
+                    st.button(
+                        "Compare these products",
+                        key=f"hl_featured_{item.slug_a}_{item.slug_b}_{item.goal}",
+                        on_click=_open_featured,
+                        args=(item.slug_a, item.slug_b, item.goal, item.category),
+                    )
+
+
+def render_explore(products: pd.DataFrame, featured: list[FeaturedComparison]) -> None:
     _sync_query({"page": "explore"})
     render_brand()
     st.title("Compare packaged foods, clearly")
@@ -111,6 +153,8 @@ def render_explore(products: pd.DataFrame) -> None:
         unsafe_allow_html=True,
     )
     render_data_coverage(products)
+    render_how_healthlens_compares()
+    render_popular_comparisons(featured)
 
     categories = ["All categories"]
     if not products.empty:
@@ -337,8 +381,9 @@ def render_methodology() -> None:
     st.title("Methodology")
     st.markdown(
         """
-Product data is added by hand from packaging or official product pages. This first release
+Product data is added by hand from packaging or official product pages. HealthLens
 does not scrape the web, call Open Food Facts, or invent nutrition figures for real brands.
+Categories are malted drink powders, chocolates, and breakfast cereals and muesli.
 The public catalogue shows only products marked **Verified**. Rows marked Needs review or Demo
 stay out of Explore and Compare.
 
@@ -385,9 +430,14 @@ def main() -> None:
     for message in catalog.errors:
         st.error(message)
 
+    featured_entries, featured_errors = load_featured_entries()
+    for message in featured_errors:
+        st.error(message)
+    featured = eligible_featured_comparisons(featured_entries, catalog.products)
+
     page = st.session_state.hl_page
     if page == PAGE_EXPLORE:
-        render_explore(public)
+        render_explore(public, featured)
     elif page == PAGE_COMPARE:
         render_compare(public, loaded)
     else:

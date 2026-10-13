@@ -43,7 +43,11 @@ NUMERIC_COLUMNS = [
     "sodium_mg_100g",
 ]
 
-ALLOWED_CATEGORIES = {"Malted drink powders", "Chocolates"}
+ALLOWED_CATEGORIES = {
+    "Malted drink powders",
+    "Chocolates",
+    "Breakfast cereals and muesli",
+}
 ALLOWED_VERIFICATION = {"Verified", "Needs review", "Demo"}
 
 DEMO_BANNER = (
