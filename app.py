@@ -6,10 +6,9 @@ import pandas as pd
 import streamlit as st
 
 from compare import GOALS, Goal, compare_products, sort_products_for_goal
-from data import filter_products, load_catalog, serving_values
+from data import data_coverage, filter_products, load_catalog, serving_values, verified_products
 from ui import (
     comparison_disclaimer,
-    demo_banner,
     empty_state,
     format_grams,
     format_kcal,
@@ -33,18 +32,41 @@ def _product_label(row: pd.Series) -> str:
     return str(row["name"])
 
 
-def render_explore(products: pd.DataFrame, goal: Goal, category: str, brand_query: str, verified_only: bool) -> None:
+CATALOGUE_EMPTY = (
+    "The catalogue is being verified. No verified products are available yet, "
+    "so there is nothing to explore or compare."
+)
+FILTER_EMPTY = (
+    "No verified products match these filters. Try another category or clear the brand search."
+)
+
+
+def render_data_coverage(products: pd.DataFrame) -> None:
+    coverage = data_coverage(products)
+    st.subheader("Data coverage")
+    verified, categories, recent = st.columns(3)
+    verified.metric("Verified products", coverage["verified_products"])
+    categories.metric("Categories with verified products", coverage["categories"])
+    recent.metric("Most recent last verified", coverage["most_recent"])
+
+
+def render_explore(products: pd.DataFrame, goal: Goal, category: str, brand_query: str) -> None:
     st.title("Compare packaged foods, clearly")
     st.markdown(
-        '<p class="hl-subtitle">Compare sugar, protein, fibre and sodium from nutrition labels.</p>',
+        '<p class="hl-subtitle">Compare sugar, protein, fibre and sodium from nutrition labels. '
+        "Only verified products are shown.</p>",
         unsafe_allow_html=True,
     )
+    render_data_coverage(products)
+
+    if products.empty:
+        empty_state(CATALOGUE_EMPTY)
+        return
 
     filtered = filter_products(
         products,
         category=category,
         brand_query=brand_query,
-        verified_only=verified_only,
     )
     ranked = sort_products_for_goal(filtered, goal)
 
@@ -56,10 +78,7 @@ def render_explore(products: pd.DataFrame, goal: Goal, category: str, brand_quer
     )
 
     if ranked.empty:
-        empty_state(
-            "No products match these filters. Try another category, clear the brand search, "
-            "or turn off “Show verified products only” while demo data is loaded."
-        )
+        empty_state(FILTER_EMPTY)
         return
 
     display = pd.DataFrame(
@@ -143,10 +162,15 @@ def _metric_rows(product_a: pd.Series, product_b: pd.Series) -> pd.DataFrame:
 def render_compare(products: pd.DataFrame, goal: Goal) -> None:
     st.title("Compare two products")
     st.caption("Choose one category, then two different products. Verdicts use label values per 100g.")
+    render_data_coverage(products)
 
-    categories = sorted(products["category"].dropna().unique().tolist()) if not products.empty else []
+    if products.empty:
+        empty_state(CATALOGUE_EMPTY)
+        return
+
+    categories = sorted(products["category"].dropna().unique().tolist())
     if not categories:
-        empty_state("There are no products to compare yet.")
+        empty_state(CATALOGUE_EMPTY)
         return
 
     category = st.selectbox("Category", categories, index=0)
@@ -200,6 +224,8 @@ def render_methodology() -> None:
         """
 Product data is added by hand from packaging or official product pages. This first release
 does not scrape the web, call Open Food Facts, or invent nutrition figures for real brands.
+The public catalogue shows only products marked **Verified**. Rows marked Needs review or Demo
+stay out of Explore and Compare.
 
 Nutrition is compared **per 100g** so pack sizes do not hide differences. Per-serving figures
 are calculated from the listed serving size: *(value per 100g × serving size in grams) ÷ 100*.
@@ -219,31 +245,26 @@ def main() -> None:
     inject_styles()
     catalog = load_catalog()
 
+    public = verified_products(catalog.products)
+
     with st.sidebar:
         st.header("HealthLens India")
         page = st.radio("Section", ("Explore products", "Compare products", "Methodology"), index=0)
         st.divider()
         goal: Goal = st.selectbox("Health-goal selector", list(GOALS), index=0)
         categories = ["All categories"]
-        if not catalog.products.empty:
-            categories.extend(sorted(catalog.products["category"].dropna().unique().tolist()))
+        if not public.empty:
+            categories.extend(sorted(public["category"].dropna().unique().tolist()))
         category = st.selectbox("Category filter", categories, index=0)
         brand_query = st.text_input("Brand text search", placeholder="Search brand")
-        verified_only = st.checkbox("Show verified products only", value=False)
 
-    demo_banner(catalog.using_demo_data)
     for message in catalog.errors:
-        if catalog.using_demo_data and message == (
-            "You are viewing fictional demo data. Add manually verified products to "
-            "data/products.csv before publishing."
-        ):
-            continue
         st.error(message)
 
     if page == "Explore products":
-        render_explore(catalog.products, goal, category, brand_query, verified_only)
+        render_explore(public, goal, category, brand_query)
     elif page == "Compare products":
-        render_compare(catalog.products, goal)
+        render_compare(public, goal)
     else:
         render_methodology()
 

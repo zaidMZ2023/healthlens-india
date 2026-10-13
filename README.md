@@ -6,9 +6,11 @@ The app does **not** say a product is healthy, diagnose anyone, or give medical 
 
 ## What you can do
 
-- Explore products sorted for **lower sugar** or **higher protein**
-- Compare two products in the same category, per 100g and per serving
+- Explore verified products sorted for **lower sugar** or **higher protein**
+- Compare two verified products in the same category, per 100g and per serving
 - Read how the data and calculations work on the Methodology page
+
+Explore and Compare show only rows marked `Verified`. `Needs review` and `Demo` rows stay in the CSV for follow-up, but they are not part of the public catalogue. A **Data coverage** section shows how many verified products and categories are available, and the most recent `last_verified` date.
 
 This version uses a local CSV. There is no login, payments, barcode scanner, live prices, or AI chat.
 
@@ -20,6 +22,7 @@ healthlens-india/
   data.py
   compare.py
   ui.py
+  validate_products.py
   requirements.txt
   README.md
   .gitignore
@@ -28,10 +31,11 @@ healthlens-india/
     sample_products.csv
   tests/
     test_compare.py
+    test_validate_products.py
 ```
 
-- `data/products.csv` — production catalog (headers only until you add verified labels)
-- `data/sample_products.csv` — fictional `DEMO …` rows for local development
+- `data/products.csv` — production catalog. Only `Verified` rows appear in the app.
+- `data/sample_products.csv` — fictional `DEMO …` rows kept for reference. The app does not load them.
 
 ## Setup
 
@@ -49,11 +53,15 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-If `products.csv` has no usable rows, the app loads the sample file and shows:
+If there are no `Verified` rows, Explore and Compare show an empty state explaining that the catalogue is being verified. They do not fall back to fictional or unreviewed products.
 
-> You are viewing fictional demo data. Add manually verified products to data/products.csv before publishing.
+## Check the catalogue
 
-Replace the fictional sample data before any public deployment. Do not invent nutrition numbers for real brands.
+```bash
+python validate_products.py
+```
+
+The command reads `data/products.csv` and reports missing required fields, duplicate `product_id` or `slug` values, invalid categories, invalid numbers, invalid dates, missing source URLs, and `Verified` rows that are missing core nutrition values. A `Verified` row needs `name`, `brand`, `category`, `serving_size_g`, `calories_kcal_100g`, `protein_g_100g`, `sugar_g_100g`, `label_source_url`, and `last_verified`.
 
 ## Run tests
 
@@ -80,7 +88,7 @@ HL-001,your-product-slug,Product name,Brand name,Malted drink powders,Variant na
 2. Open [share.streamlit.io](https://share.streamlit.io) and sign in.
 3. Choose the repo, branch, and main file `app.py`.
 4. Deploy. No API keys or secrets are required.
-5. Confirm `data/products.csv` contains verified products before sharing the app publicly.
+5. Run `python validate_products.py` and confirm `Verified` rows are complete before sharing the app publicly.
 
 ## Disclaimer
 

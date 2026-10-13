@@ -12,7 +12,6 @@ from compare import nutrition_per_serving
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
 PRODUCTION_CSV = DATA_DIR / "products.csv"
-SAMPLE_CSV = DATA_DIR / "sample_products.csv"
 
 COLUMNS = [
     "product_id",
@@ -154,6 +153,34 @@ def validate_products(frame: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
     return cleaned, errors
 
 
+def verified_products(frame: pd.DataFrame) -> pd.DataFrame:
+    """Public catalogue: only rows marked Verified."""
+    if frame.empty or "verification_status" not in frame.columns:
+        return frame.iloc[0:0].copy()
+    status = frame["verification_status"].astype(str).str.strip()
+    return frame.loc[status == "Verified"].reset_index(drop=True)
+
+
+def data_coverage(frame: pd.DataFrame) -> dict[str, int | str]:
+    """Summary of the public verified catalogue."""
+    verified = verified_products(frame)
+    count = int(len(verified))
+    if count == 0 or "category" not in verified.columns:
+        categories = 0
+    else:
+        categories = int(verified["category"].replace("", pd.NA).dropna().nunique())
+    most_recent = "—"
+    if count and "last_verified" in verified.columns:
+        dates = pd.to_datetime(verified["last_verified"], errors="coerce")
+        if dates.notna().any():
+            most_recent = dates.max().strftime("%Y-%m-%d")
+    return {
+        "verified_products": count,
+        "categories": categories,
+        "most_recent": most_recent,
+    }
+
+
 def filter_products(
     frame: pd.DataFrame,
     *,
@@ -185,28 +212,12 @@ def serving_values(row: pd.Series) -> dict[str, float | None]:
 
 @st.cache_data(show_spinner=False)
 def load_catalog() -> Catalog:
+    """Load the production CSV. Demo and unreviewed rows are not a public fallback."""
     production = _read_csv(PRODUCTION_CSV)
     production, production_errors = validate_products(production)
-    if not production.empty:
-        return Catalog(
-            products=production,
-            using_demo_data=False,
-            errors=tuple(production_errors),
-            source_path=str(PRODUCTION_CSV),
-        )
-
-    sample = _read_csv(SAMPLE_CSV)
-    sample, sample_errors = validate_products(sample)
-    errors = list(production_errors)
-    if production.empty:
-        errors.append(DEMO_BANNER)
-    errors.extend(sample_errors)
-    if sample.empty:
-        errors.append("No usable products were found in data/products.csv or data/sample_products.csv.")
-        return empty_catalog(tuple(errors))
     return Catalog(
-        products=sample,
-        using_demo_data=True,
-        errors=tuple(dict.fromkeys(errors)),
-        source_path=str(SAMPLE_CSV),
+        products=production,
+        using_demo_data=False,
+        errors=tuple(production_errors),
+        source_path=str(PRODUCTION_CSV),
     )
